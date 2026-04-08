@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VOX-LAN Tactical Pro</title>
+    <title>VOX-LAN Tactical Pro v2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
@@ -43,7 +43,7 @@
 
         .ptt-btn:active {
             transform: translateY(6px);
-            box-shadow: 0 4px 0 #020617, 0 5px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 0 #020617, 0 5px 15px rgba(0,0,0,0.4);
             background: #064e3b;
             border-color: #10b981;
         }
@@ -62,12 +62,22 @@
         .glow-green { box-shadow: 0 0 15px #10b981; background-color: #10b981; }
         .glow-red { box-shadow: 0 0 15px #ef4444; background-color: #ef4444; }
         .glow-blue { box-shadow: 0 0 20px #3b82f6; background-color: #3b82f6; }
+        .glow-orange { box-shadow: 0 0 15px #f59e0b; background-color: #f59e0b; }
 
         .level-bar {
-            height: 4px;
+            height: 6px;
             background: #064e3b;
             transition: width 0.05s ease;
             width: 0%;
+        }
+
+        .lamp {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #1e293b;
+            display: inline-block;
+            margin-right: 4px;
         }
 
         input::placeholder { color: #1e293b; }
@@ -99,55 +109,74 @@
             
             <div class="flex flex-col items-center justify-center py-2">
                 <div id="my-id" class="text-4xl font-bold text-emerald-400 tracking-tighter font-['Orbitron'] mb-1">----</div>
-                <div id="action-msg" class="text-[10px] h-4 text-emerald-600 font-bold uppercase tracking-wider">Esperando Red...</div>
+                <div id="action-msg" class="text-[10px] h-4 text-emerald-600 font-bold uppercase tracking-wider">Iniciando...</div>
             </div>
 
-            <!-- Vúmetro / Nivel de Audio -->
-            <div class="w-full bg-slate-900/50 rounded overflow-hidden mt-4 border border-emerald-900/10">
-                <div id="audio-level" class="level-bar shadow-[0_0_10px_#10b981]"></div>
+            <!-- Vúmetro Principal (Decibeles) -->
+            <div class="mt-4">
+                <div class="flex justify-between text-[8px] text-emerald-900 font-bold uppercase mb-1">
+                    <span>Signal Intensity</span>
+                    <span id="db-value">-∞ dB</span>
+                </div>
+                <div class="w-full bg-slate-900/50 rounded overflow-hidden border border-emerald-900/10 p-0.5">
+                    <div id="audio-level" class="level-bar shadow-[0_0_10px_#10b981]"></div>
+                </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-emerald-900/20">
+            <!-- Indicadores de Hardware -->
+            <div class="flex justify-between mt-4 px-1">
+                <div class="flex items-center">
+                    <div id="lamp-mic" class="lamp"></div>
+                    <span class="text-[8px] text-emerald-900 font-bold uppercase">Mic Active</span>
+                </div>
+                <div class="flex items-center">
+                    <div id="lamp-rx-active" class="lamp"></div>
+                    <span class="text-[8px] text-emerald-900 font-bold uppercase">Audio Incoming</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-2 pt-3 border-t border-emerald-900/20">
                 <div>
-                    <span class="text-[9px] block text-emerald-700 font-bold uppercase">Estado Mic</span>
-                    <span id="mic-status" class="text-[11px] text-emerald-500 font-bold">MUTED</span>
+                    <span class="text-[9px] block text-emerald-700 font-bold uppercase">Memoria ID</span>
+                    <span id="save-status" class="text-[11px] text-emerald-500 font-bold italic">LIBRE</span>
                 </div>
                 <div class="text-right">
-                    <span class="text-[9px] block text-emerald-700 font-bold uppercase">Latencia</span>
-                    <span class="text-[11px] text-emerald-500 font-bold font-mono">~20ms PEER</span>
+                    <span class="text-[9px] block text-emerald-700 font-bold uppercase">Modo</span>
+                    <span class="text-[11px] text-emerald-500 font-bold font-mono italic">REAL-TIME</span>
                 </div>
             </div>
         </div>
 
         <!-- Target Input -->
         <div class="space-y-2">
-            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">ID del Receptor</label>
-            <div class="relative">
-                <input type="text" id="target-id" placeholder="INGRESE ID DESTINO" 
-                   class="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-xl text-emerald-400 font-bold text-center focus:outline-none focus:border-emerald-600 transition-all tracking-[0.3em] font-['Orbitron']">
-                <div class="absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-900/30"></div>
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Fijar ID del Compañero</label>
+            <div class="flex gap-2">
+                <div class="relative flex-1">
+                    <input type="text" id="target-id" placeholder="ID DESTINO" 
+                       class="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-xl text-emerald-400 font-bold text-center focus:outline-none focus:border-emerald-600 transition-all tracking-[0.3em] font-['Orbitron']">
+                </div>
+                <button id="lock-id-btn" title="Guardar ID en memoria" class="bg-slate-900 border-2 border-slate-800 px-4 rounded-xl hover:bg-slate-800 active:scale-95 transition-all text-slate-500 hover:text-emerald-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- PTT Button Section -->
+    <!-- PTT Button -->
     <div class="w-full max-w-md flex flex-col items-center gap-6">
-        <div class="relative">
-            <!-- Ripple Effect Container -->
-            <div id="ptt-container" class="absolute inset-0 rounded-full scale-110 opacity-0 transition-opacity"></div>
-            
-            <button id="ptt-btn" 
-                    class="ptt-btn w-44 h-44 rounded-full flex flex-col items-center justify-center group select-none outline-none relative z-10">
-                <div class="absolute inset-0 rounded-full border border-white/5 pointer-events-none"></div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-slate-500 group-active:text-emerald-400 mb-2 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-                <span class="text-slate-500 group-active:text-emerald-400 font-black text-[10px] tracking-[0.3em] uppercase">Transmitir</span>
-            </button>
-        </div>
+        <button id="ptt-btn" 
+                class="ptt-btn w-44 h-44 rounded-full flex flex-col items-center justify-center group select-none outline-none relative z-10">
+            <div class="absolute inset-0 rounded-full border border-white/5 pointer-events-none"></div>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-14 h-14 text-slate-500 group-active:text-emerald-400 mb-2 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+            <span class="text-slate-500 group-active:text-emerald-400 font-black text-[10px] tracking-[0.3em] uppercase">Transmitir</span>
+        </button>
         
-        <p class="text-[10px] text-slate-600 text-center font-bold uppercase tracking-widest leading-relaxed max-w-[200px]">
-            PRESIONE PARA EMITIR<br>SUELTE PARA RECIBIR
+        <p class="text-[10px] text-slate-600 text-center font-bold uppercase tracking-widest leading-relaxed">
+            RED LOCAL P2P <span class="text-slate-400">STATUS: READY</span>
         </p>
     </div>
 
@@ -161,9 +190,13 @@
         const actionMsg = document.getElementById('action-msg');
         const targetInput = document.getElementById('target-id');
         const audioLevel = document.getElementById('audio-level');
-        const micStatus = document.getElementById('mic-status');
+        const dbValue = document.getElementById('db-value');
         const txLabel = document.getElementById('tx-label');
         const rxLabel = document.getElementById('rx-label');
+        const lampMic = document.getElementById('lamp-mic');
+        const lampRx = document.getElementById('lamp-rx-active');
+        const lockBtn = document.getElementById('lock-id-btn');
+        const saveStatus = document.getElementById('save-status');
         const remoteAudio = document.getElementById('remote-audio');
 
         let peer = null;
@@ -173,42 +206,78 @@
         let analyser = null;
         let animationFrame = null;
 
-        // --- SISTEMA DE SONIDO (BEEPS) ---
-        function playSystemTone(freq, duration, type = 'sine') {
-            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioContext.createOscillator();
-            const gain = audioContext.createGain();
-            
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-            
-            gain.gain.setValueAtTime(0.1, audioContext.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-            
-            osc.connect(gain);
-            gain.connect(audioContext.destination);
-            
-            osc.start();
-            osc.stop(audioContext.currentTime + duration);
+        // --- SISTEMA DE SONIDO ---
+        function playSystemTone(freq, duration) {
+            try {
+                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+                gain.gain.setValueAtTime(0.05, audioContext.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                osc.start();
+                osc.stop(audioContext.currentTime + duration);
+            } catch(e) {}
         }
 
-        // --- VISUALIZADOR DE NIVEL ---
-        function startLevelMeter(stream) {
+        // --- PERSISTENCIA ---
+        function saveTargetId() {
+            const id = targetInput.value.trim();
+            if(id) {
+                localStorage.setItem('vox_lan_target', id);
+                saveStatus.innerText = "FIJADO";
+                playSystemTone(1000, 0.1);
+            }
+        }
+
+        function loadTargetId() {
+            const saved = localStorage.getItem('vox_lan_target');
+            if(saved) {
+                targetInput.value = saved;
+                saveStatus.innerText = "CARGADO";
+            }
+        }
+
+        // --- VISUALIZADOR DE DECIBELES (VÚMETRO) ---
+        function startLevelMeter(stream, isLocal = true) {
             if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Limpiar previo si existe
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+
             const source = audioContext.createMediaStreamSource(stream);
             analyser = audioContext.createAnalyser();
             analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.3;
             source.connect(analyser);
             
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
             
+            if(isLocal) lampMic.classList.add('glow-orange');
+            else lampRx.classList.add('glow-blue');
+
             function update() {
                 analyser.getByteFrequencyData(dataArray);
                 let sum = 0;
-                for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-                let average = sum / dataArray.length;
+                for(let i = 0; i < bufferLength; i++) sum += dataArray[i];
+                let average = sum / bufferLength;
+                
+                // Convertir a porcentaje visual
                 let level = Math.min(100, (average / 128) * 100);
                 audioLevel.style.width = level + "%";
+                
+                // Mostrar dB aproximados
+                let db = Math.round(20 * Math.log10(average / 255));
+                dbValue.innerText = isFinite(db) ? `${db} dB` : "-∞ dB";
+
+                // Cambiar color si clipea (volumen muy alto)
+                if(level > 85) audioLevel.style.backgroundColor = "#ef4444";
+                else audioLevel.style.backgroundColor = "#10b981";
+
                 animationFrame = requestAnimationFrame(update);
             }
             update();
@@ -217,9 +286,12 @@
         function stopLevelMeter() {
             if (animationFrame) cancelAnimationFrame(animationFrame);
             audioLevel.style.width = "0%";
+            dbValue.innerText = "-∞ dB";
+            lampMic.classList.remove('glow-orange');
+            lampRx.classList.remove('glow-blue');
         }
 
-        // --- LÓGICA DE PEERJS ---
+        // --- LÓGICA PEER ---
         function init() {
             const randomId = Math.floor(1000 + Math.random() * 8999).toString();
             peer = new Peer(randomId);
@@ -229,18 +301,22 @@
                 statusLed.className = 'w-3 h-3 rounded-full status-glow glow-green';
                 statusText.innerText = 'Online / Ready';
                 actionMsg.innerText = 'Sistema en reposo';
+                loadTargetId();
             });
 
+            // RECIBIR AUDIO (EL RECEPTOR)
             peer.on('call', (call) => {
                 call.answer();
                 call.on('stream', (stream) => {
                     remoteAudio.srcObject = stream;
                     
-                    // Feedback RX
-                    actionMsg.innerText = 'RECIBIENDO AUDIO...';
+                    // Feedback visual en el receptor
+                    actionMsg.innerText = 'RX: RECIBIENDO VOZ';
                     rxLabel.classList.add('bg-blue-600', 'text-white', 'border-blue-400');
                     statusLed.className = 'w-3 h-3 rounded-full status-glow glow-blue';
-                    startLevelMeter(stream);
+                    
+                    // INICIAR VÚMETRO CON EL AUDIO RECIBIDO
+                    startLevelMeter(stream, false);
                 });
                 call.on('close', () => {
                     rxLabel.classList.remove('bg-blue-600', 'text-white', 'border-blue-400');
@@ -260,32 +336,29 @@
             stopLevelMeter();
         }
 
+        // TRANSMITIR AUDIO (EL EMISOR)
         async function startTalk() {
             const dest = targetInput.value.trim();
             if (!dest) {
                 actionMsg.innerText = 'ERROR: SIN DESTINO';
-                playSystemTone(150, 0.1, 'square');
                 return;
             }
 
             try {
-                // Tono de apertura
                 playSystemTone(880, 0.05);
-                setTimeout(() => playSystemTone(1100, 0.08), 50);
-
+                
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: { echoCancellation: true, noiseSuppression: true } 
                 });
                 
                 currentCall = peer.call(dest, localStream);
                 
-                // UI Feedback TX
                 pttBtn.classList.add('active-glow');
                 txLabel.classList.add('bg-emerald-600', 'text-white', 'border-emerald-400');
-                actionMsg.innerText = 'TRANSMITIENDO...';
-                micStatus.innerText = 'ACTIVE';
-                statusLed.className = 'w-3 h-3 rounded-full status-glow glow-blue';
-                startLevelMeter(localStream);
+                actionMsg.innerText = 'TX: TRANSMITIENDO';
+                
+                // Iniciar vúmetro con MI propio audio
+                startLevelMeter(localStream, true);
 
             } catch (err) {
                 console.error(err);
@@ -298,14 +371,9 @@
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
-            
-            // Tono de cierre
             playSystemTone(600, 0.1);
-
-            // Reset UI
             pttBtn.classList.remove('active-glow');
             txLabel.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-400');
-            micStatus.innerText = 'MUTED';
             resetUI();
         }
 
@@ -316,6 +384,7 @@
         }, 1000);
 
         // Eventos
+        lockBtn.addEventListener('click', saveTargetId);
         pttBtn.addEventListener('mousedown', startTalk);
         pttBtn.addEventListener('mouseup', stopTalk);
         pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startTalk(); });
