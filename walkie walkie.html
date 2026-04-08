@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VOX-LAN Tactical</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #050505;
+            color: #d1d5db;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .lcd-display {
+            background-color: #0a110f;
+            border: 2px solid #162a24;
+            box-shadow: inset 0 0 20px rgba(0, 255, 150, 0.05);
+            position: relative;
+        }
+
+        .lcd-display::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .ptt-btn {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            box-shadow: 0 8px 0 #020617, 0 15px 25px rgba(0,0,0,0.6);
+            border: 4px solid #334155;
+            transition: all 0.05s active;
+        }
+
+        .ptt-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #020617, 0 5px 15px rgba(0,0,0,0.4);
+            background: #064e3b;
+            border-color: #10b981;
+        }
+
+        .status-glow {
+            transition: all 0.3s ease;
+        }
+
+        .glow-green { box-shadow: 0 0 15px #10b981; background-color: #10b981; }
+        .glow-red { box-shadow: 0 0 15px #ef4444; background-color: #ef4444; }
+        .glow-blue { box-shadow: 0 0 15px #3b82f6; background-color: #3b82f6; }
+
+        input::placeholder { color: #334155; }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-between p-6 pb-12">
+
+    <!-- Header Status -->
+    <div class="w-full max-w-md flex justify-between items-center opacity-80">
+        <div class="flex items-center gap-3">
+            <div id="status-led" class="w-3 h-3 rounded-full status-glow glow-red"></div>
+            <span id="status-text" class="text-[10px] font-bold tracking-[0.2em] uppercase">Offline</span>
+        </div>
+        <div class="text-right">
+            <span class="text-[10px] block opacity-50 font-bold uppercase">Signal Strength</span>
+            <span class="text-xs font-bold text-emerald-500">LOW-LATENCY LAN</span>
+        </div>
+    </div>
+
+    <!-- Main Console -->
+    <div class="w-full max-w-md flex flex-col gap-6">
+        
+        <!-- LCD Display -->
+        <div class="lcd-display rounded-xl p-5 border-t-4 border-slate-800">
+            <div class="flex justify-between items-start mb-4">
+                <div class="text-[10px] text-emerald-500/50 font-bold uppercase tracking-widest">Unit ID</div>
+                <div class="text-[10px] text-emerald-500/50 font-bold uppercase tracking-widest" id="clock">00:00:00</div>
+            </div>
+            
+            <div class="flex flex-col items-center justify-center py-4">
+                <div id="my-id" class="text-3xl font-bold text-emerald-400 tracking-tighter font-['Orbitron'] mb-1">----</div>
+                <div id="action-msg" class="text-[10px] text-emerald-600 font-bold uppercase animate-pulse">Iniciando sistema...</div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-emerald-900/20">
+                <div>
+                    <span class="text-[9px] block text-emerald-700 font-bold uppercase">Modo</span>
+                    <span class="text-xs text-emerald-500 font-bold">PTT-VOICE</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[9px] block text-emerald-700 font-bold uppercase">Frecuencia</span>
+                    <span class="text-xs text-emerald-500 font-bold">Encrypted WebRTC</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target Input -->
+        <div class="space-y-2">
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">ID del Receptor</label>
+            <input type="text" id="target-id" placeholder="INGRESE ID DESTINO" 
+                   class="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-xl text-emerald-400 font-bold text-center focus:outline-none focus:border-emerald-900 transition-colors tracking-widest">
+        </div>
+    </div>
+
+    <!-- PTT Button Section -->
+    <div class="w-full max-w-md flex flex-col items-center gap-8">
+        <button id="ptt-btn" 
+                class="ptt-btn w-48 h-48 rounded-full flex flex-col items-center justify-center group select-none outline-none">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-slate-400 group-active:text-emerald-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+            </svg>
+            <span class="text-slate-500 group-active:text-emerald-400 font-black text-sm tracking-widest uppercase">Transmisión</span>
+        </button>
+        
+        <p class="text-[10px] text-slate-600 text-center font-bold uppercase tracking-widest leading-relaxed">
+            Mantenga presionado el disparador<br>para iniciar flujo de voz
+        </p>
+    </div>
+
+    <audio id="remote-audio" autoplay></audio>
+
+    <script>
+        const pttBtn = document.getElementById('ptt-btn');
+        const statusLed = document.getElementById('status-led');
+        const statusText = document.getElementById('status-text');
+        const myIdDisplay = document.getElementById('my-id');
+        const actionMsg = document.getElementById('action-msg');
+        const targetInput = document.getElementById('target-id');
+        const remoteAudio = document.getElementById('remote-audio');
+
+        let peer = null;
+        let localStream = null;
+        let currentCall = null;
+
+        function init() {
+            // Generamos un ID de 4 dígitos para que sea fácil de dictar por voz
+            const randomId = Math.floor(1000 + Math.random() * 8999).toString();
+            peer = new Peer(randomId);
+
+            peer.on('open', (id) => {
+                myIdDisplay.innerText = id;
+                statusLed.className = 'w-3 h-3 rounded-full status-glow glow-green';
+                statusText.innerText = 'Online / Ready';
+                actionMsg.innerText = 'Sistema en espera';
+            });
+
+            // Al recibir audio
+            peer.on('call', (call) => {
+                call.answer(); // Auto-answer para efecto Walkie Talkie
+                call.on('stream', (stream) => {
+                    remoteAudio.srcObject = stream;
+                    actionMsg.innerText = 'RECIBIENDO TRANSMISIÓN...';
+                    actionMsg.classList.add('text-blue-400');
+                    statusLed.className = 'w-3 h-3 rounded-full status-glow glow-blue';
+                });
+                call.on('close', () => {
+                    actionMsg.innerText = 'Sistema en espera';
+                    actionMsg.classList.remove('text-blue-400');
+                    statusLed.className = 'w-3 h-3 rounded-full status-glow glow-green';
+                });
+            });
+
+            peer.on('error', (err) => {
+                console.error(err);
+                statusText.innerText = 'Error de Enlace';
+                statusLed.className = 'w-3 h-3 rounded-full status-glow glow-red';
+            });
+        }
+
+        async function startTalk() {
+            const dest = targetInput.value.trim();
+            if (!dest) {
+                actionMsg.innerText = 'ERROR: FALTA ID';
+                setTimeout(() => actionMsg.innerText = 'Sistema en espera', 2000);
+                return;
+            }
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+                
+                currentCall = peer.call(dest, localStream);
+                actionMsg.innerText = 'TRANSMITIENDO...';
+                statusLed.className = 'w-3 h-3 rounded-full status-glow glow-blue';
+            } catch (err) {
+                console.error(err);
+                actionMsg.innerText = 'ERROR MICRO';
+            }
+        }
+
+        function stopTalk() {
+            if (currentCall) currentCall.close();
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            actionMsg.innerText = 'Sistema en espera';
+            statusLed.className = 'w-3 h-3 rounded-full status-glow glow-green';
+        }
+
+        // Reloj
+        setInterval(() => {
+            const d = new Date();
+            document.getElementById('clock').innerText = d.toTimeString().split(' ')[0];
+        }, 1000);
+
+        // Eventos unificados (Mouse + Touch)
+        pttBtn.addEventListener('mousedown', startTalk);
+        pttBtn.addEventListener('mouseup', stopTalk);
+        pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startTalk(); });
+        pttBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopTalk(); });
+
+        init();
+    </script>
+</body>
+</html>
