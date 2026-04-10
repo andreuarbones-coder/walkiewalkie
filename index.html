@@ -3,416 +3,417 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VOX-LAN Tactical Pro | Independent Edition</title>
+    <title>Intercomunicador Dual P2P</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400&display=swap');
         
+        :root {
+            --bg-base: #18181b; /* Zinc 900 */
+            --bg-surface: #27272a; /* Zinc 800 */
+            --text-main: #e4e4e7; /* Zinc 200 */
+            --text-muted: #a1a1aa; /* Zinc 400 */
+            --pastel-green: #99f6e4; /* Teal 200 */
+            --pastel-red: #fecdd3; /* Rose 200 */
+            --pastel-blue: #bae6fd; /* Sky 200 */
+        }
+
         body {
-            font-family: 'JetBrains Mono', monospace;
-            background-color: #050505;
-            color: #d1d5db;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
             overflow: hidden;
             touch-action: none;
-            transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background-color 0.5s ease;
         }
 
-        /* Estado Transmisión Activa: Cambio radical de fondo */
+        /* Estado de Transmisión Activa */
         body.transmitting {
-            background-color: #220a0a;
+            background-color: #2e1014;
         }
 
-        .lcd-display {
-            background-color: #0a110f;
-            border: 2px solid #162a24;
-            box-shadow: inset 0 0 30px rgba(0, 255, 150, 0.05);
-            position: relative;
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .panel {
+            background-color: var(--bg-surface);
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             transition: all 0.4s ease;
         }
 
-        /* LCD en modo alerta roja */
-        body.transmitting .lcd-display {
-            border-color: #ef4444;
-            background-color: #1a0a0a;
-            box-shadow: inset 0 0 40px rgba(239, 68, 68, 0.15);
-        }
-
-        .lcd-display::after {
-            content: "";
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 10;
-        }
-
+        /* Botón PTT Minimalista */
         .ptt-btn {
-            background: linear-gradient(145deg, #1e293b, #0f172a);
-            box-shadow: 0 10px 0 #020617, 0 20px 30px rgba(0,0,0,0.7);
-            border: 4px solid #334155;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
+            background-color: var(--bg-surface);
+            border: 2px solid #3f3f46;
+            color: var(--text-main);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        /* Botón en estado ACTIVO (Rojo vibrante) */
         .ptt-btn.on {
-            background: linear-gradient(145deg, #b91c1c, #7f1d1d);
-            border-color: #f87171;
-            box-shadow: 0 4px 0 #450a0a, 0 0 50px rgba(239, 68, 68, 0.5);
-            transform: translateY(6px);
+            background-color: #4c1d24;
+            border-color: var(--pastel-red);
+            color: var(--pastel-red);
+            box-shadow: 0 0 40px rgba(254, 205, 211, 0.15);
+            transform: scale(0.98);
         }
 
-        .ptt-btn.on svg {
-            color: #fee2e2;
-            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+        /* Vúmetro Suave */
+        .vu-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--pastel-green);
+            border-radius: 999px;
+            transition: width 0.05s ease-out;
+            opacity: 0.8;
+        }
+        body.transmitting .vu-bar { background-color: var(--pastel-red); }
+
+        /* Sliders personalizados */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: var(--text-main);
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            background: #3f3f46;
+            border-radius: 2px;
         }
 
-        .status-glow { transition: all 0.3s ease; }
-        .glow-green { box-shadow: 0 0 15px #10b981; background-color: #10b981; }
-        .glow-red { box-shadow: 0 0 15px #ef4444; background-color: #ef4444; }
-        .glow-blue { box-shadow: 0 0 20px #3b82f6; background-color: #3b82f6; }
-        .glow-orange { box-shadow: 0 0 15px #f59e0b; background-color: #f59e0b; }
-
-        .level-bar { height: 8px; background: #10b981; transition: width 0.05s ease; width: 0%; border-radius: 2px; }
-        body.transmitting .level-bar { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
-
-        .lamp { width: 8px; height: 8px; border-radius: 50%; background: #1e293b; display: inline-block; margin-right: 4px; transition: all 0.2s; }
-        
-        .unit-id-font { font-family: 'Orbitron', sans-serif; }
+        /* Indicador de estado (Pastel) */
+        .indicator { width: 6px; height: 6px; border-radius: 50%; transition: all 0.3s; }
+        .ind-off { background-color: #52525b; }
+        .ind-green { background-color: var(--pastel-green); box-shadow: 0 0 10px var(--pastel-green); }
+        .ind-red { background-color: var(--pastel-red); box-shadow: 0 0 10px var(--pastel-red); }
     </style>
 </head>
-<body class="h-screen flex flex-col items-center justify-between p-6 pb-12">
+<body class="h-screen w-screen flex flex-col items-center justify-center p-4">
 
-    <!-- Header Status -->
-    <div class="w-full max-w-md flex justify-between items-center opacity-80">
-        <div class="flex items-center gap-3">
-            <div id="status-led" class="w-3 h-3 rounded-full status-glow glow-red"></div>
-            <span id="status-text" class="text-[10px] font-bold tracking-[0.2em] uppercase">Sincronizando...</span>
-        </div>
-        <div class="flex gap-4">
-            <span id="tx-label" class="text-[9px] font-black text-slate-800 border border-slate-800 px-2 rounded transition-all">TX</span>
-            <span id="rx-label" class="text-[9px] font-black text-slate-800 border border-slate-800 px-2 rounded transition-all">RX</span>
-        </div>
-    </div>
-
-    <!-- Main Console -->
-    <div class="w-full max-w-md flex flex-col gap-6">
+    <!-- PANTALLA DE SELECCIÓN DE UNIDAD -->
+    <div id="setup-screen" class="w-full max-w-sm panel p-8 flex flex-col gap-6 text-center">
+        <h1 class="text-xl font-semibold tracking-wide text-zinc-100">Configuración Inicial</h1>
+        <p class="text-sm text-zinc-400">Selecciona la identidad de este dispositivo. Solo funcionarán entre ellos.</p>
         
-        <!-- LCD Display -->
-        <div class="lcd-display rounded-2xl p-6 border-t-4 border-slate-800">
-            <div class="flex justify-between items-start mb-4">
-                <div class="text-[10px] text-emerald-500/40 font-bold uppercase tracking-widest">Unidad Local</div>
-                <div class="text-[10px] text-emerald-500/40 font-bold uppercase tracking-widest" id="clock">00:00:00</div>
-            </div>
-            
-            <div class="flex flex-col items-center justify-center py-2">
-                <div id="my-id" class="text-5xl font-bold text-emerald-400 tracking-tighter unit-id-font mb-2">----</div>
-                <div id="action-msg" class="text-[10px] h-4 text-emerald-600 font-bold uppercase tracking-[0.2em]">Cargando Enlace</div>
-            </div>
-
-            <!-- Vúmetro Principal -->
-            <div class="mt-6">
-                <div class="flex justify-between text-[8px] text-emerald-900 font-bold uppercase mb-2">
-                    <span id="meter-label">Intensidad de Señal</span>
-                    <span id="db-value">-∞ dB</span>
-                </div>
-                <div class="w-full bg-slate-900/50 rounded-full overflow-hidden border border-emerald-900/20 p-1">
-                    <div id="audio-level" class="level-bar shadow-[0_0_10px_#10b981]"></div>
-                </div>
-            </div>
-
-            <!-- Indicadores Técnicos -->
-            <div class="flex justify-between mt-6 px-1">
-                <div class="flex items-center">
-                    <div id="lamp-mic" class="lamp"></div>
-                    <span class="text-[8px] text-emerald-900 font-bold uppercase">Hardware Mic</span>
-                </div>
-                <div class="flex items-center">
-                    <div id="lamp-rx-active" class="lamp"></div>
-                    <span class="text-[8px] text-emerald-900 font-bold uppercase">Audio Incoming</span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-emerald-900/20">
-                <div>
-                    <span class="text-[9px] block text-emerald-800 font-bold uppercase">Memoria ID</span>
-                    <span id="save-status" class="text-[11px] text-emerald-500 font-bold italic">LIBRE</span>
-                </div>
-                <div class="text-right">
-                    <span class="text-[9px] block text-emerald-800 font-bold uppercase">Protocolo</span>
-                    <span class="text-[11px] text-emerald-500 font-bold font-mono italic">P2P-DIRECT</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- ID Input -->
-        <div class="space-y-3">
-            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 italic">Vincular con Unidad Destino</label>
-            <div class="flex gap-2">
-                <div class="relative flex-1">
-                    <input type="text" id="target-id" placeholder="ID COMPAÑERO" 
-                       class="w-full bg-slate-900 border-2 border-slate-800 p-4 rounded-xl text-emerald-400 font-bold text-center focus:outline-none focus:border-emerald-600 transition-all tracking-[0.4em] unit-id-font text-lg">
-                </div>
-                <button id="lock-id-btn" title="Fijar ID en memoria" class="bg-slate-900 border-2 border-slate-800 px-5 rounded-xl hover:bg-slate-800 active:scale-90 transition-all text-slate-500 hover:text-emerald-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                    </svg>
-                </button>
-            </div>
+        <div class="flex flex-col gap-4 mt-4">
+            <button onclick="initApp('unidad-a', 'unidad-b')" class="p-4 rounded-xl border border-zinc-600 hover:bg-zinc-700 active:scale-95 transition-all flex items-center justify-between">
+                <span class="font-semibold text-teal-200">UNIDAD A</span>
+                <span class="text-xs text-zinc-500">Conecta con B</span>
+            </button>
+            <button onclick="initApp('unidad-b', 'unidad-a')" class="p-4 rounded-xl border border-zinc-600 hover:bg-zinc-700 active:scale-95 transition-all flex items-center justify-between">
+                <span class="font-semibold text-sky-200">UNIDAD B</span>
+                <span class="text-xs text-zinc-500">Conecta con A</span>
+            </button>
         </div>
     </div>
 
-    <!-- PTT Button (Toggle Mode) -->
-    <div class="w-full max-w-md flex flex-col items-center gap-8">
-        <div class="relative">
-            <button id="ptt-btn" 
-                    class="ptt-btn w-48 h-48 rounded-full flex flex-col items-center justify-center group select-none outline-none relative z-10">
-                <div class="absolute inset-0 rounded-full border border-white/5 pointer-events-none"></div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 text-slate-500 transition-all duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+    <!-- PANTALLA PRINCIPAL DEL INTERCOMUNICADOR -->
+    <div id="main-screen" class="w-full max-w-sm h-full flex flex-col justify-between hidden pb-6">
+        
+        <!-- Cabecera de Estado -->
+        <div class="panel p-5 flex flex-col gap-4">
+            <div class="flex justify-between items-center">
+                <div class="flex flex-col">
+                    <span class="text-xs text-zinc-500 font-semibold tracking-wider uppercase">Identidad</span>
+                    <span id="ui-my-role" class="text-lg font-semibold tracking-wide text-teal-200">UNIDAD A</span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-xs text-zinc-500 font-semibold tracking-wider uppercase">Enlace a</span>
+                    <span id="ui-target-role" class="text-sm text-zinc-300">UNIDAD B</span>
+                </div>
+            </div>
+
+            <!-- Monitor de Enlace (Heartbeat) -->
+            <div class="bg-zinc-900/50 rounded-lg p-3 flex justify-between items-center border border-zinc-700/50">
+                <div class="flex items-center gap-2">
+                    <div id="link-indicator" class="indicator ind-off"></div>
+                    <span id="link-status" class="text-xs font-semibold text-zinc-400">Buscando compañero...</span>
+                </div>
+                <span id="link-ping" class="text-xs mono text-zinc-500">-- ms</span>
+            </div>
+        </div>
+
+        <!-- Área Central (Vúmetro y Controles secundarios) -->
+        <div class="flex flex-col gap-6 px-2">
+            
+            <!-- Vúmetro -->
+            <div class="flex flex-col gap-2">
+                <div class="flex justify-between text-[10px] font-semibold text-zinc-500 uppercase tracking-widest px-1">
+                    <span id="meter-label">Actividad de Audio</span>
+                </div>
+                <div class="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
+                    <div id="vu-meter" class="vu-bar"></div>
+                </div>
+            </div>
+
+            <!-- Control de Volumen -->
+            <div class="flex items-center gap-4 bg-zinc-800/50 p-4 rounded-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                 </svg>
-                <span id="ptt-status-label" class="text-slate-500 font-black text-[11px] tracking-[0.4em] uppercase mt-1">Standby</span>
+                <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="1" class="flex-1">
+            </div>
+        </div>
+
+        <!-- Botón PTT Principal -->
+        <div class="flex justify-center mb-4">
+            <button id="ptt-btn" class="ptt-btn w-64 h-64 rounded-full flex flex-col items-center justify-center outline-none select-none">
+                <svg id="ptt-icon" xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                <span id="ptt-text" class="text-xs tracking-[0.2em] font-semibold uppercase">Tocar para Hablar</span>
             </button>
         </div>
         
-        <p class="text-[10px] text-slate-600 text-center font-bold uppercase tracking-widest leading-relaxed">
-            MODO: <span class="text-emerald-500">TOGGLE FULL-DUPLEX</span> <br>
-            <span class="opacity-50">Pulsa una vez para iniciar/cortar</span>
-        </p>
     </div>
 
     <audio id="remote-audio" autoplay></audio>
 
     <script>
-        const pttBtn = document.getElementById('ptt-btn');
-        const pttStatusLabel = document.getElementById('ptt-status-label');
-        const statusLed = document.getElementById('status-led');
-        const statusText = document.getElementById('status-text');
-        const myIdDisplay = document.getElementById('my-id');
-        const actionMsg = document.getElementById('action-msg');
-        const targetInput = document.getElementById('target-id');
-        const audioLevel = document.getElementById('audio-level');
-        const dbValue = document.getElementById('db-value');
-        const txLabel = document.getElementById('tx-label');
-        const rxLabel = document.getElementById('rx-label');
-        const lampMic = document.getElementById('lamp-mic');
-        const lampRx = document.getElementById('lamp-rx-active');
-        const lockBtn = document.getElementById('lock-id-btn');
-        const saveStatus = document.getElementById('save-status');
-        const remoteAudio = document.getElementById('remote-audio');
-
+        // Prefix secreto para evitar colisiones en la red pública de PeerJS
+        const APP_PREFIX = "ar-vox-private-v1-"; 
+        
+        let myId, targetId;
         let peer = null;
         let localStream = null;
         let currentCall = null;
-        let audioContext = null;
-        let analyser = null;
-        let animationFrame = null;
+        let dataConnection = null;
         let isTransmitting = false;
+        
+        // Audio/Visual
+        let audioCtx = null;
+        let analyser = null;
+        let animFrame = null;
+        
+        // Elementos DOM
+        const setupScreen = document.getElementById('setup-screen');
+        const mainScreen = document.getElementById('main-screen');
+        const pttBtn = document.getElementById('ptt-btn');
+        const pttText = document.getElementById('ptt-text');
+        const linkIndicator = document.getElementById('link-indicator');
+        const linkStatus = document.getElementById('link-status');
+        const linkPing = document.getElementById('link-ping');
+        const vuMeter = document.getElementById('vu-meter');
+        const meterLabel = document.getElementById('meter-label');
+        const remoteAudio = document.getElementById('remote-audio');
+        const volSlider = document.getElementById('vol-slider');
 
-        // --- SISTEMA DE AUDIO (BEEPS) ---
-        function playTone(freq, duration) {
-            try {
-                if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioContext.createOscillator();
-                const gain = audioContext.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-                gain.gain.setValueAtTime(0.05, audioContext.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
-                osc.connect(gain);
-                gain.connect(audioContext.destination);
-                osc.start();
-                osc.stop(audioContext.currentTime + duration);
-            } catch(e) {}
-        }
-
-        // --- PERSISTENCIA DE ID ---
-        function saveTargetId() {
-            const id = targetInput.value.trim();
-            if(id) {
-                localStorage.setItem('vox_lan_target', id);
-                saveStatus.innerText = "FIJADO";
-                playTone(1000, 0.1);
+        // WakeLock API para mantener pantalla encendida
+        let wakeLock = null;
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => { console.log('Wake Lock liberado'); });
+                } catch (err) { console.error('Wake Lock falló:', err); }
             }
         }
 
-        function loadTargetId() {
-            const saved = localStorage.getItem('vox_lan_target');
-            if(saved) {
-                targetInput.value = saved;
-                saveStatus.innerText = "CARGADO";
-            }
+        // --- INICIALIZACIÓN ---
+        function initApp(role, target) {
+            myId = APP_PREFIX + role;
+            targetId = APP_PREFIX + target;
+
+            // Actualizar Textos UI
+            document.getElementById('ui-my-role').innerText = role === 'unidad-a' ? 'UNIDAD A' : 'UNIDAD B';
+            document.getElementById('ui-my-role').className = role === 'unidad-a' ? 'text-lg font-semibold tracking-wide text-teal-200' : 'text-lg font-semibold tracking-wide text-sky-200';
+            document.getElementById('ui-target-role').innerText = target === 'unidad-a' ? 'UNIDAD A' : 'UNIDAD B';
+
+            setupScreen.classList.add('hidden');
+            mainScreen.classList.remove('hidden');
+
+            // Requerir WakeLock (interacción del usuario acaba de ocurrir)
+            requestWakeLock();
+            
+            // Inicializar AudioContext
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+            setupPeer();
         }
 
-        // --- VÚMETRO DE AUDIO ---
-        function startLevelMeter(stream, isLocal = true) {
-            if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Si ya hay un medidor corriendo, lo reseteamos para el nuevo stream
-            if (animationFrame) cancelAnimationFrame(animationFrame);
+        function setupPeer() {
+            peer = new Peer(myId, { debug: 1 });
 
-            const source = audioContext.createMediaStreamSource(stream);
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 64;
-            analyser.smoothingTimeConstant = 0.4;
-            source.connect(analyser);
-            
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-            
-            if(isLocal) lampMic.classList.add('glow-orange');
-            else lampRx.classList.add('glow-blue');
-
-            function update() {
-                analyser.getByteFrequencyData(dataArray);
-                let sum = 0;
-                for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-                let average = sum / dataArray.length;
-                
-                let level = Math.min(100, (average / 128) * 100);
-                audioLevel.style.width = level + "%";
-                
-                let db = Math.round(20 * Math.log10(average / 255));
-                dbValue.innerText = isFinite(db) ? `${db} dB` : "-∞ dB";
-
-                animationFrame = requestAnimationFrame(update);
-            }
-            update();
-        }
-
-        function stopLevelMeter() {
-            if (animationFrame) cancelAnimationFrame(animationFrame);
-            audioLevel.style.width = "0%";
-            dbValue.innerText = "-∞ dB";
-            lampMic.classList.remove('glow-orange');
-            lampRx.classList.remove('glow-blue');
-        }
-
-        // --- LÓGICA PEERJS ---
-        function init() {
-            // ID aleatorio de 4 dígitos para simplicidad
-            const randomId = Math.floor(1000 + Math.random() * 8999).toString();
-            peer = new Peer(randomId);
-
-            peer.on('open', (id) => {
-                myIdDisplay.innerText = id;
-                statusLed.className = 'w-3 h-3 rounded-full status-glow glow-green';
-                statusText.innerText = 'ONLINE / READY';
-                actionMsg.innerText = 'EN ESPERA DE SEÑAL';
-                loadTargetId();
+            peer.on('open', () => {
+                connectDataChannel(); // Intentar conectar al otro lado silenciosamente
             });
 
-            // RECIBIR LLAMADA (FULL-DUPLEX)
+            // Recibir canal de datos (El otro hace ping)
+            peer.on('connection', (conn) => {
+                dataConnection = conn;
+                handleDataChannel(conn);
+            });
+
+            // Recibir llamada de voz
             peer.on('call', (call) => {
-                // Auto-answer: contestamos con nuestro audio si estamos transmitiendo
                 call.answer(isTransmitting ? localStream : null);
                 
                 call.on('stream', (stream) => {
                     remoteAudio.srcObject = stream;
-                    
-                    // Actualización visual del receptor
-                    actionMsg.innerText = 'RX: AUDIO ENTRANTE';
-                    rxLabel.classList.add('bg-blue-600', 'text-white', 'border-blue-400');
-                    statusLed.className = 'w-3 h-3 rounded-full status-glow glow-blue';
-                    
-                    // Iniciamos el vúmetro con el audio que llega
-                    startLevelMeter(stream, false);
+                    meterLabel.innerText = "Recibiendo...";
+                    meterLabel.style.color = "var(--pastel-blue)";
+                    startVumeter(stream);
                 });
 
                 call.on('close', () => {
-                    rxLabel.classList.remove('bg-blue-600', 'text-white', 'border-blue-400');
-                    if(!isTransmitting) resetUI();
+                    if(!isTransmitting) stopVumeter();
                 });
             });
 
             peer.on('error', (err) => {
-                statusText.innerText = 'ERROR DE ENLACE';
-                statusLed.className = 'w-3 h-3 rounded-full status-glow glow-red';
+                console.error("Peer error:", err);
+                // Si el otro no está conectado aún, reintentaremos automáticamente
             });
         }
 
-        function resetUI() {
-            actionMsg.innerText = 'EN ESPERA DE SEÑAL';
-            statusLed.className = 'w-3 h-3 rounded-full status-glow glow-green';
-            stopLevelMeter();
-        }
+        // --- MONITOR DE ENLACE (HEARTBEAT/PING) ---
+        let pingInterval;
+        let lastPingTime;
 
-        // TRANSMITIR (TOGGLE ON)
-        async function startTalk() {
-            const dest = targetInput.value.trim();
-            if (!dest) {
-                actionMsg.innerText = 'ERROR: SIN DESTINO';
-                playTone(200, 0.2);
-                return;
-            }
-
-            try {
-                playTone(880, 0.05); // Tono de inicio
-                
-                localStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { 
-                        echoCancellation: true, 
-                        noiseSuppression: true,
-                        autoGainControl: true 
-                    } 
-                });
-                
-                currentCall = peer.call(dest, localStream);
-                
-                // Cambios Visuales Críticos
-                isTransmitting = true;
-                document.body.classList.add('transmitting');
-                pttBtn.classList.add('on');
-                pttStatusLabel.innerText = "Transm.";
-                txLabel.classList.add('bg-red-600', 'text-white', 'border-red-400');
-                actionMsg.innerText = 'TX: EMITIENDO SEÑAL';
-                
-                startLevelMeter(localStream, true);
-
-            } catch (err) {
-                console.error(err);
-                actionMsg.innerText = 'ERROR MICRO';
-                isTransmitting = false;
-            }
-        }
-
-        // CORTAR (TOGGLE OFF)
-        function stopTalk() {
-            if (currentCall) currentCall.close();
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
+        function connectDataChannel() {
+            if(dataConnection && dataConnection.open) return;
             
-            playTone(600, 0.1); // Tono de fin
+            const conn = peer.connect(targetId, { reliable: false });
             
-            // Restauración Visual
-            isTransmitting = false;
-            document.body.classList.remove('transmitting');
-            pttBtn.classList.remove('on');
-            pttStatusLabel.innerText = "Standby";
-            txLabel.classList.remove('bg-red-600', 'text-white', 'border-red-400');
-            resetUI();
+            conn.on('open', () => {
+                dataConnection = conn;
+                handleDataChannel(conn);
+            });
+            
+            // Reintento silencioso si no conecta
+            setTimeout(connectDataChannel, 3000); 
         }
 
-        // Reloj LCD
-        setInterval(() => {
-            const d = new Date();
-            document.getElementById('clock').innerText = d.toTimeString().split(' ')[0];
-        }, 1000);
+        function handleDataChannel(conn) {
+            linkIndicator.className = 'indicator ind-green';
+            linkStatus.innerText = "Enlace Activo";
+            linkStatus.style.color = "var(--pastel-green)";
 
-        // Eventos
-        lockBtn.addEventListener('click', saveTargetId);
-        
-        // Manejo del botón como TOGGLE
-        pttBtn.addEventListener('click', () => {
+            // Iniciar ciclo de pings
+            clearInterval(pingInterval);
+            pingInterval = setInterval(() => {
+                if(conn.open) {
+                    lastPingTime = Date.now();
+                    conn.send({ type: 'ping' });
+                } else {
+                    linkLost();
+                }
+            }, 2000);
+
+            conn.on('data', (data) => {
+                if (data.type === 'ping') {
+                    conn.send({ type: 'pong' }); // Responder al ping
+                } else if (data.type === 'pong') {
+                    const latency = Date.now() - lastPingTime;
+                    linkPing.innerText = `${latency} ms`;
+                }
+            });
+
+            conn.on('close', linkLost);
+            conn.on('error', linkLost);
+        }
+
+        function linkLost() {
+            clearInterval(pingInterval);
+            dataConnection = null;
+            linkIndicator.className = 'indicator ind-off';
+            linkStatus.innerText = "Compañero Ausente";
+            linkStatus.style.color = "var(--text-muted)";
+            linkPing.innerText = "-- ms";
+            // Intentar reconectar
+            setTimeout(connectDataChannel, 3000);
+        }
+
+        // --- CONTROL DE VOZ Y VÚMETRO ---
+        function startVumeter(stream) {
+            if(animFrame) cancelAnimationFrame(animFrame);
+            
+            const source = audioCtx.createMediaStreamSource(stream);
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 128;
+            analyser.smoothingTimeConstant = 0.5;
+            source.connect(analyser);
+            
+            const data = new Uint8Array(analyser.frequencyBinCount);
+            
+            const update = () => {
+                analyser.getByteFrequencyData(data);
+                let sum = 0; data.forEach(v => sum += v);
+                let avg = sum / data.length;
+                let level = Math.min(100, (avg / 128) * 100);
+                vuMeter.style.width = level + "%";
+                animFrame = requestAnimationFrame(update);
+            };
+            update();
+        }
+
+        function stopVumeter() {
+            if(animFrame) cancelAnimationFrame(animFrame);
+            vuMeter.style.width = "0%";
+            meterLabel.innerText = "Actividad de Audio";
+            meterLabel.style.color = "var(--text-muted)";
+        }
+
+        async function toggleTransmit() {
             if(isTransmitting) {
-                stopTalk();
+                // APAGAR TRANSMISIÓN
+                isTransmitting = false;
+                if(currentCall) currentCall.close();
+                if(localStream) localStream.getTracks().forEach(t => t.stop());
+                
+                document.body.classList.remove('transmitting');
+                pttBtn.classList.remove('on');
+                pttText.innerText = "Tocar para Hablar";
+                stopVumeter();
             } else {
-                startTalk();
+                // INICIAR TRANSMISIÓN
+                try {
+                    // Reanudar contexto de audio (requerimiento navegadores)
+                    if(audioCtx.state === 'suspended') audioCtx.resume();
+
+                    localStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: { echoCancellation: true, noiseSuppression: true } 
+                    });
+                    
+                    currentCall = peer.call(targetId, localStream);
+                    
+                    isTransmitting = true;
+                    document.body.classList.add('transmitting');
+                    pttBtn.classList.add('on');
+                    pttText.innerText = "Cortar Canal";
+                    meterLabel.innerText = "Emitiendo...";
+                    meterLabel.style.color = "var(--pastel-red)";
+                    
+                    startVumeter(localStream);
+
+                } catch(e) {
+                    console.error(e);
+                    alert("No se pudo acceder al micrófono.");
+                }
+            }
+        }
+
+        // --- EVENTOS INTERFAZ ---
+        pttBtn.addEventListener('click', toggleTransmit);
+        
+        volSlider.addEventListener('input', (e) => {
+            remoteAudio.volume = e.target.value;
+        });
+
+        // Recuperar WakeLock si se minimiza y vuelve a maximizar la app
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && wakeLock !== null) {
+                requestWakeLock();
             }
         });
 
-        init();
     </script>
 </body>
 </html>
