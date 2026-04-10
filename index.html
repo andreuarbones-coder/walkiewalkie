@@ -212,7 +212,11 @@
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
                     wakeLock.addEventListener('release', () => { console.log('Wake Lock liberado'); });
-                } catch (err) { console.error('Wake Lock falló:', err); }
+                } catch (err) { 
+                    if (err.name !== 'NotAllowedError') {
+                        console.warn('Wake Lock no disponible en este entorno.'); 
+                    }
+                }
             }
         }
 
@@ -239,7 +243,7 @@
         }
 
         function setupPeer() {
-            peer = new Peer(myId, { debug: 1 });
+            peer = new Peer(myId, { debug: 0 });
 
             peer.on('open', () => {
                 connectDataChannel(); // Intentar conectar al otro lado silenciosamente
@@ -268,8 +272,11 @@
             });
 
             peer.on('error', (err) => {
-                console.error("Peer error:", err);
-                // Si el otro no está conectado aún, reintentaremos automáticamente
+                if (err.type === 'peer-unavailable') {
+                    // Es normal si el otro dispositivo no se ha conectado aún.
+                    return;
+                }
+                console.warn("Aviso de PeerJS:", err);
             });
         }
 
