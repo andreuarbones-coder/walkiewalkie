@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap');
         
         :root {
             --bg-base: #18181b; /* Zinc 900 */
@@ -29,9 +29,7 @@
         }
 
         /* Estado de Transmisión Activa */
-        body.transmitting {
-            background-color: #2e1014;
-        }
+        body.transmitting { background-color: #2e1014; }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
 
@@ -42,7 +40,7 @@
             transition: all 0.4s ease;
         }
 
-        /* Botón PTT Minimalista */
+        /* Botón PTT */
         .ptt-btn {
             background-color: var(--bg-surface);
             border: 2px solid #3f3f46;
@@ -58,10 +56,9 @@
             transform: scale(0.98);
         }
 
-        /* Vúmetro Suave */
+        /* Vúmetro */
         .vu-bar {
-            height: 100%;
-            width: 0%;
+            height: 100%; width: 0%;
             background-color: var(--pastel-green);
             border-radius: 999px;
             transition: width 0.05s ease-out;
@@ -69,64 +66,64 @@
         }
         body.transmitting .vu-bar { background-color: var(--pastel-red); }
 
-        /* Sliders personalizados */
-        input[type=range] {
-            -webkit-appearance: none;
-            background: transparent;
-            width: 100%;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px; width: 16px;
-            border-radius: 50%;
-            background: var(--text-main);
-            margin-top: -6px;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px;
-            background: #3f3f46;
-            border-radius: 2px;
-        }
+        /* Sliders */
+        input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: var(--text-main); margin-top: -6px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #3f3f46; border-radius: 2px; }
 
-        /* Indicador de estado (Pastel) */
+        /* Indicador de estado */
         .indicator { width: 6px; height: 6px; border-radius: 50%; transition: all 0.3s; }
         .ind-off { background-color: #52525b; }
         .ind-green { background-color: var(--pastel-green); box-shadow: 0 0 10px var(--pastel-green); }
         .ind-red { background-color: var(--pastel-red); box-shadow: 0 0 10px var(--pastel-red); }
+
+        .hidden-screen { display: none !important; }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col items-center justify-center p-4">
 
-    <!-- PANTALLA DE SELECCIÓN DE UNIDAD -->
-    <div id="setup-screen" class="w-full max-w-sm panel p-8 flex flex-col gap-6 text-center">
-        <h1 class="text-xl font-semibold tracking-wide text-zinc-100">Configuración Inicial</h1>
-        <p class="text-sm text-zinc-400">Selecciona la identidad de este dispositivo. Solo funcionarán entre ellos.</p>
-        
-        <div class="flex flex-col gap-4 mt-4">
-            <button onclick="initApp('unidad-a', 'unidad-b')" class="p-4 rounded-xl border border-zinc-600 hover:bg-zinc-700 active:scale-95 transition-all flex items-center justify-between">
-                <span class="font-semibold text-teal-200">UNIDAD A</span>
-                <span class="text-xs text-zinc-500">Conecta con B</span>
-            </button>
-            <button onclick="initApp('unidad-b', 'unidad-a')" class="p-4 rounded-xl border border-zinc-600 hover:bg-zinc-700 active:scale-95 transition-all flex items-center justify-between">
-                <span class="font-semibold text-sky-200">UNIDAD B</span>
-                <span class="text-xs text-zinc-500">Conecta con A</span>
-            </button>
+    <!-- REPRODUCTOR SILENCIOSO PARA BACKGROUND MODE -->
+    <!-- Un archivo WAV en base64 de 1 segundo de silencio total -->
+    <audio id="silent-audio" loop playsinline>
+        <source src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA" type="audio/wav">
+    </audio>
+
+    <!-- PANTALLA DE VINCULACIÓN (PAIRING) -->
+    <div id="setup-screen" class="w-full max-w-sm panel p-8 flex flex-col gap-6 text-center hidden-screen">
+        <div class="flex flex-col gap-2">
+            <h1 class="text-xl font-semibold tracking-wide text-zinc-100">Vinculación de Radio</h1>
+            <p class="text-xs text-zinc-400">Comparte tu código con tu compañero o introduce el suyo para conectar ambos dispositivos de forma segura.</p>
         </div>
+        
+        <div class="bg-zinc-900/50 p-4 rounded-xl border border-zinc-700/50">
+            <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest block mb-1">Tu Código (ID Local)</span>
+            <span id="display-my-id" class="text-3xl font-bold mono text-teal-200 tracking-[0.2em]">----</span>
+        </div>
+
+        <div class="flex flex-col gap-2 text-left">
+            <label class="text-[10px] text-zinc-500 font-semibold uppercase tracking-widest pl-1">Código del Compañero</label>
+            <input type="text" id="input-partner-id" placeholder="Ej. 8492" maxlength="8"
+                   class="w-full bg-zinc-900 border-2 border-zinc-700 p-4 rounded-xl text-zinc-200 font-bold text-center focus:outline-none focus:border-teal-500 transition-all tracking-[0.3em] mono text-xl">
+        </div>
+
+        <button onclick="pairDevices()" class="mt-2 w-full bg-teal-800/40 text-teal-200 border border-teal-700/50 hover:bg-teal-700/50 font-bold p-4 rounded-xl transition-all active:scale-95">
+            VINCULAR Y ENTRAR
+        </button>
     </div>
 
     <!-- PANTALLA PRINCIPAL DEL INTERCOMUNICADOR -->
-    <div id="main-screen" class="w-full max-w-sm h-full flex flex-col justify-between hidden pb-6">
+    <div id="main-screen" class="w-full max-w-sm h-full flex flex-col justify-between hidden-screen pb-6">
         
         <!-- Cabecera de Estado -->
         <div class="panel p-5 flex flex-col gap-4">
-            <div class="flex justify-between items-center">
+            <div class="flex justify-between items-start">
                 <div class="flex flex-col">
-                    <span class="text-xs text-zinc-500 font-semibold tracking-wider uppercase">Identidad</span>
-                    <span id="ui-my-role" class="text-lg font-semibold tracking-wide text-teal-200">UNIDAD A</span>
+                    <span class="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Local</span>
+                    <span id="ui-my-role" class="text-sm font-semibold tracking-wide mono text-zinc-300">ID: ----</span>
                 </div>
                 <div class="flex flex-col items-end">
-                    <span class="text-xs text-zinc-500 font-semibold tracking-wider uppercase">Enlace a</span>
-                    <span id="ui-target-role" class="text-sm text-zinc-300">UNIDAD B</span>
+                    <span class="text-[9px] text-zinc-500 font-semibold tracking-wider uppercase">Destino</span>
+                    <span id="ui-target-role" class="text-sm font-semibold tracking-wide mono text-teal-200">ID: ----</span>
                 </div>
             </div>
 
@@ -134,9 +131,21 @@
             <div class="bg-zinc-900/50 rounded-lg p-3 flex justify-between items-center border border-zinc-700/50">
                 <div class="flex items-center gap-2">
                     <div id="link-indicator" class="indicator ind-off"></div>
-                    <span id="link-status" class="text-xs font-semibold text-zinc-400">Buscando compañero...</span>
+                    <span id="link-status" class="text-xs font-semibold text-zinc-400">Buscando enlace...</span>
                 </div>
-                <span id="link-ping" class="text-xs mono text-zinc-500">-- ms</span>
+                <span id="link-ping" class="text-[10px] mono text-zinc-500">-- ms</span>
+            </div>
+
+            <div class="flex justify-between items-center px-1">
+                <span class="text-[9px] font-semibold text-teal-500/70 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                    </svg>
+                    Fondo Activo
+                </span>
+                <button onclick="unpair()" class="text-[9px] font-semibold text-zinc-500 hover:text-zinc-300 underline uppercase tracking-wider">
+                    Desvincular
+                </button>
             </div>
         </div>
 
@@ -168,17 +177,18 @@
                 <svg id="ptt-icon" xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                 </svg>
-                <span id="ptt-text" class="text-xs tracking-[0.2em] font-semibold uppercase">Tocar para Hablar</span>
+                <span id="ptt-text" class="text-xs tracking-[0.2em] font-semibold uppercase">Hablar (Toggle)</span>
             </button>
         </div>
         
     </div>
 
+    <!-- Elemento de audio para recibir la voz del compañero -->
     <audio id="remote-audio" autoplay></audio>
 
     <script>
-        // Prefix secreto para evitar colisiones en la red pública de PeerJS
-        const APP_PREFIX = "ar-vox-private-v1-"; 
+        // Prefix secreto para aislar nuestras conexiones en PeerJS
+        const APP_PREFIX = "ar-vox-v2-"; 
         
         let myId, targetId;
         let peer = null;
@@ -195,6 +205,8 @@
         // Elementos DOM
         const setupScreen = document.getElementById('setup-screen');
         const mainScreen = document.getElementById('main-screen');
+        const displayMyId = document.getElementById('display-my-id');
+        const inputPartnerId = document.getElementById('input-partner-id');
         const pttBtn = document.getElementById('ptt-btn');
         const pttText = document.getElementById('ptt-text');
         const linkIndicator = document.getElementById('link-indicator');
@@ -203,47 +215,115 @@
         const vuMeter = document.getElementById('vu-meter');
         const meterLabel = document.getElementById('meter-label');
         const remoteAudio = document.getElementById('remote-audio');
+        const silentAudio = document.getElementById('silent-audio');
         const volSlider = document.getElementById('vol-slider');
 
-        // WakeLock API para mantener pantalla encendida
+        // WakeLock API (Mantener pantalla activa si se deja abierta)
         let wakeLock = null;
         async function requestWakeLock() {
             if ('wakeLock' in navigator) {
                 try {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLock.addEventListener('release', () => { console.log('Wake Lock liberado'); });
                 } catch (err) { 
-                    if (err.name !== 'NotAllowedError') {
-                        console.warn('Wake Lock no disponible en este entorno.'); 
-                    }
+                    // No registrar error si el entorno no lo permite, es opcional.
                 }
             }
         }
 
-        // --- INICIALIZACIÓN ---
-        function initApp(role, target) {
-            myId = APP_PREFIX + role;
-            targetId = APP_PREFIX + target;
+        // Truco para habilitar el audio de fondo en móviles (Background Mode)
+        function enableBackgroundAudio() {
+            // Reproducir un sonido en blanco en bucle obliga al OS a mantener el proceso de audio vivo
+            silentAudio.play().catch(e => console.log("Silent audio autoplay blocked, waiting for interaction."));
+            
+            // Configurar MediaSession para que aparezca en la pantalla de bloqueo
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: 'Intercomunicador Activo',
+                    artist: 'VOX-LAN Escuchando',
+                    album: 'Radio P2P'
+                });
+                
+                // Mapear los botones físicos de los auriculares (opcional)
+                navigator.mediaSession.setActionHandler('play', function() { /* Ignorar, siempre activo */ });
+                navigator.mediaSession.setActionHandler('pause', function() { /* Ignorar, no pausar */ });
+            }
+        }
 
-            // Actualizar Textos UI
-            document.getElementById('ui-my-role').innerText = role === 'unidad-a' ? 'UNIDAD A' : 'UNIDAD B';
-            document.getElementById('ui-my-role').className = role === 'unidad-a' ? 'text-lg font-semibold tracking-wide text-teal-200' : 'text-lg font-semibold tracking-wide text-sky-200';
-            document.getElementById('ui-target-role').innerText = target === 'unidad-a' ? 'UNIDAD A' : 'UNIDAD B';
+        // --- GESTIÓN DE ESTADOS Y MEMORIA ---
+        function boot() {
+            // Generar o cargar mi ID (Código de 4 dígitos)
+            let storedMyId = localStorage.getItem('vox_my_id');
+            if (!storedMyId) {
+                storedMyId = Math.floor(1000 + Math.random() * 9000).toString();
+                localStorage.setItem('vox_my_id', storedMyId);
+            }
+            myId = storedMyId;
+            displayMyId.innerText = myId;
 
-            setupScreen.classList.add('hidden');
-            mainScreen.classList.remove('hidden');
+            // Verificar si ya tengo un compañero guardado
+            let storedPartnerId = localStorage.getItem('vox_partner_id');
+            if (storedPartnerId) {
+                targetId = storedPartnerId;
+                startMainApp();
+            } else {
+                // Mostrar pantalla de vinculación
+                setupScreen.classList.remove('hidden-screen');
+            }
+        }
 
-            // Requerir WakeLock (interacción del usuario acaba de ocurrir)
+        function pairDevices() {
+            const val = inputPartnerId.value.trim();
+            if (val.length < 4) {
+                alert("Introduce un código de compañero válido.");
+                return;
+            }
+            if (val === myId) {
+                alert("No puedes usar tu propio código.");
+                return;
+            }
+            
+            targetId = val;
+            localStorage.setItem('vox_partner_id', targetId);
+            
+            setupScreen.classList.add('hidden-screen');
+            startMainApp();
+        }
+
+        function unpair() {
+            // Detener todo
+            if (isTransmitting) toggleTransmit();
+            if (dataConnection) dataConnection.close();
+            if (peer) peer.destroy();
+            clearInterval(pingInterval);
+            
+            // Borrar de memoria
+            localStorage.removeItem('vox_partner_id');
+            targetId = null;
+            inputPartnerId.value = '';
+            
+            // Cambiar pantallas
+            mainScreen.classList.add('hidden-screen');
+            setupScreen.classList.remove('hidden-screen');
+        }
+
+        // --- LÓGICA PRINCIPAL DEL INTERCOMUNICADOR ---
+        function startMainApp() {
+            document.getElementById('ui-my-role').innerText = `ID: ${myId}`;
+            document.getElementById('ui-target-role').innerText = `ID: ${targetId}`;
+            mainScreen.classList.remove('hidden-screen');
+
+            // Habilitar trucos para que funcione con pantalla apagada
+            enableBackgroundAudio();
             requestWakeLock();
             
-            // Inicializar AudioContext
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            // Iniciar Audio Web API
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
             setupPeer();
         }
 
         function setupPeer() {
-            peer = new Peer(myId, { debug: 0 });
+            peer = new Peer(APP_PREFIX + myId, { debug: 0 });
 
             peer.on('open', () => {
                 connectDataChannel(); // Intentar conectar al otro lado silenciosamente
@@ -255,13 +335,21 @@
                 handleDataChannel(conn);
             });
 
-            // Recibir llamada de voz
+            // Recibir llamada de voz (El otro presiona PTT)
             peer.on('call', (call) => {
+                // Asegurar que el audio background está activo (por si el SO lo durmió)
+                silentAudio.play().catch(()=>{});
+                
+                // Contestar (con o sin nuestro propio audio dependiendo de si estamos hablando)
                 call.answer(isTransmitting ? localStream : null);
                 
                 call.on('stream', (stream) => {
                     remoteAudio.srcObject = stream;
-                    meterLabel.innerText = "Recibiendo...";
+                    
+                    // Forzar play programáticamente ayuda en móviles
+                    remoteAudio.play().catch(()=>{});
+
+                    meterLabel.innerText = "Recibiendo audio...";
                     meterLabel.style.color = "var(--pastel-blue)";
                     startVumeter(stream);
                 });
@@ -273,29 +361,29 @@
 
             peer.on('error', (err) => {
                 if (err.type === 'peer-unavailable') {
-                    // Es normal si el otro dispositivo no se ha conectado aún.
+                    // Ignorar silenciosamente, el compañero simplemente no tiene la app abierta.
                     return;
                 }
-                console.warn("Aviso de PeerJS:", err);
             });
         }
 
-        // --- MONITOR DE ENLACE (HEARTBEAT/PING) ---
+        // --- MONITOR DE ENLACE (PINGS) ---
         let pingInterval;
         let lastPingTime;
 
         function connectDataChannel() {
+            if(!peer || peer.destroyed) return;
             if(dataConnection && dataConnection.open) return;
             
-            const conn = peer.connect(targetId, { reliable: false });
+            const conn = peer.connect(APP_PREFIX + targetId, { reliable: false });
             
             conn.on('open', () => {
                 dataConnection = conn;
                 handleDataChannel(conn);
             });
             
-            // Reintento silencioso si no conecta
-            setTimeout(connectDataChannel, 3000); 
+            // Reintento silencioso cada 4 segundos
+            setTimeout(connectDataChannel, 4000); 
         }
 
         function handleDataChannel(conn) {
@@ -303,7 +391,6 @@
             linkStatus.innerText = "Enlace Activo";
             linkStatus.style.color = "var(--pastel-green)";
 
-            // Iniciar ciclo de pings
             clearInterval(pingInterval);
             pingInterval = setInterval(() => {
                 if(conn.open) {
@@ -312,11 +399,11 @@
                 } else {
                     linkLost();
                 }
-            }, 2000);
+            }, 2500);
 
             conn.on('data', (data) => {
                 if (data.type === 'ping') {
-                    conn.send({ type: 'pong' }); // Responder al ping
+                    conn.send({ type: 'pong' }); 
                 } else if (data.type === 'pong') {
                     const latency = Date.now() - lastPingTime;
                     linkPing.innerText = `${latency} ms`;
@@ -334,18 +421,22 @@
             linkStatus.innerText = "Compañero Ausente";
             linkStatus.style.color = "var(--text-muted)";
             linkPing.innerText = "-- ms";
-            // Intentar reconectar
-            setTimeout(connectDataChannel, 3000);
+            setTimeout(connectDataChannel, 4000);
         }
 
-        // --- CONTROL DE VOZ Y VÚMETRO ---
+        // --- VÚMETRO ---
         function startVumeter(stream) {
             if(animFrame) cancelAnimationFrame(animFrame);
             
+            // Crear nuevo contexto si es necesario
+            if (!audioCtx || audioCtx.state === 'closed') {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
             const source = audioCtx.createMediaStreamSource(stream);
             analyser = audioCtx.createAnalyser();
             analyser.fftSize = 128;
-            analyser.smoothingTimeConstant = 0.5;
+            analyser.smoothingTimeConstant = 0.4;
             source.connect(analyser);
             
             const data = new Uint8Array(analyser.frequencyBinCount);
@@ -368,58 +459,67 @@
             meterLabel.style.color = "var(--text-muted)";
         }
 
+        // --- BOTÓN PTT TOGGLE ---
         async function toggleTransmit() {
+            // Asegurar que las interacciones activen el contexto de audio y el audio silencioso
+            if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            silentAudio.play().catch(()=>{});
+
             if(isTransmitting) {
-                // APAGAR TRANSMISIÓN
+                // APAGAR
                 isTransmitting = false;
                 if(currentCall) currentCall.close();
                 if(localStream) localStream.getTracks().forEach(t => t.stop());
                 
                 document.body.classList.remove('transmitting');
                 pttBtn.classList.remove('on');
-                pttText.innerText = "Tocar para Hablar";
+                pttText.innerText = "Hablar (Toggle)";
                 stopVumeter();
             } else {
-                // INICIAR TRANSMISIÓN
-                try {
-                    // Reanudar contexto de audio (requerimiento navegadores)
-                    if(audioCtx.state === 'suspended') audioCtx.resume();
+                // ENCENDER
+                if (!dataConnection || !dataConnection.open) {
+                    // Advertencia amistosa, aunque dejaremos transmitir igual por si el ping se retrasó
+                    console.log("Aviso: Transmitiendo sin confirmación de enlace de datos.");
+                }
 
+                try {
                     localStream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: { echoCancellation: true, noiseSuppression: true } 
+                        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
                     });
                     
-                    currentCall = peer.call(targetId, localStream);
+                    currentCall = peer.call(APP_PREFIX + targetId, localStream);
                     
                     isTransmitting = true;
                     document.body.classList.add('transmitting');
                     pttBtn.classList.add('on');
-                    pttText.innerText = "Cortar Canal";
+                    pttText.innerText = "Cortar Emisión";
                     meterLabel.innerText = "Emitiendo...";
                     meterLabel.style.color = "var(--pastel-red)";
                     
                     startVumeter(localStream);
 
                 } catch(e) {
-                    console.error(e);
-                    alert("No se pudo acceder al micrófono.");
+                    console.error("Error acceso mic:", e);
+                    alert("Acepta el permiso del micrófono para hablar.");
                 }
             }
         }
 
-        // --- EVENTOS INTERFAZ ---
+        // --- EVENTOS DEL DOM ---
         pttBtn.addEventListener('click', toggleTransmit);
         
         volSlider.addEventListener('input', (e) => {
             remoteAudio.volume = e.target.value;
         });
 
-        // Recuperar WakeLock si se minimiza y vuelve a maximizar la app
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && wakeLock !== null) {
                 requestWakeLock();
             }
         });
+
+        // Arrancar la lógica inicial al cargar la ventana
+        window.onload = boot;
 
     </script>
 </body>
